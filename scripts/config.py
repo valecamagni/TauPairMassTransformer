@@ -59,7 +59,7 @@ def get_config(base_folder):
         # for NFM: "embed_dim": [128, 512, 128 - num_categories],
         "embed_int_dim": [64, 64, 64, 8],
         "weight_epoch": 76,  
-        "test_sample": "TTToHadronic",  
+        "test_sample": "GluGluHToTauTau_M125",  
         "test_pairType": "tau_tau",
         "model_folder": "allinclusive",
         "model_basename": "tmodel_",

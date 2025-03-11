@@ -12,7 +12,7 @@ def gaussian(x, a, b, c):
     return a * np.exp(-((x - b) ** 2) / (2 * c ** 2))
 
 
-def validation_plots_pt_mass(results, plots_folder, pairtype):
+def validation_plots_pt_mass(results, fastmtt, plots_folder, pairtype):
 
     target_pt1 = results['T_pt_1'].to_numpy()
     target_pt2 = results['T_pt_2'].to_numpy()
@@ -20,6 +20,9 @@ def validation_plots_pt_mass(results, plots_folder, pairtype):
     regressed_pt2 = results['P_pt_2'].to_numpy()
     target_mass = results['tar_mass'].to_numpy()
     regressed_mass = results['pred_mass'].to_numpy()
+    fastmtt_pt1 = fastmtt['FastMTT_pt_1'].to_numpy()
+    fastmtt_pt2 = fastmtt['FastMTT_pt_2'].to_numpy()
+    fastmtt_mass = fastmtt['FastMTT_mass'].to_numpy()
 
     xmin = 0
     xmax = 250
@@ -100,11 +103,12 @@ def validation_plots_pt_mass(results, plots_folder, pairtype):
     # Hist for pt (Tau1)
     axs[0].hist(target_pt1, bins=bins, range = (xmin, xmax), label=r"$p_T^{MC}$ - $\tau_1$", histtype="step", color = "green", linewidth=2)
     axs[0].hist(regressed_pt1, bins=bins, range = (xmin, xmax), label=r"$p_T^{TPMT}$ - $\tau_1$", histtype="step", color = "red", linewidth=2)
+    axs[0].hist(fastmtt_pt1, bins=bins, range = (xmin, xmax), label=r"$p_T^{FastMTT}$ - $\tau_1$", histtype="step", color = "deepskyblue", linewidth=2)
     axs[0].set_xlabel(r"$p_T$", fontsize = 14)
     axs[0].set_ylabel(r"Frequency", fontsize = 14)
     axs[0].set_xlim(xmin, xmax)
     axs[0].legend()
-    axs[0].set_title(r"$p_T^{TPMT}$ vs $p_T^{MC}$ - $\tau_1$", loc = 'right', fontsize = 14)
+    axs[0].set_title(r"$p_T^{TPMT}$ vs $p_T^{MC}$ vs $p_T^{FastMTT}$ - $\tau_1$", loc = 'right', fontsize = 14)
     axs[0].grid(True)
     axs[0].set_xticks(np.linspace(xmin, xmax, 11)) 
     axs[0].text(0.02, 1.00, r'$\mathbf{CMS}$' + r' $\mathit{Simulation}$', 
@@ -117,10 +121,11 @@ def validation_plots_pt_mass(results, plots_folder, pairtype):
     # Hist for pt (Tau2)
     axs[1].hist(target_pt2, bins=bins, range = (xmin, xmax),label=r"$p_T^{MC}$ - $\tau_2$", histtype="step", color= "green", linewidth=2)
     axs[1].hist(regressed_pt2, bins=bins, range = (xmin, xmax),label=r"$p_T^{TPMT}$ - $\tau_2$", histtype="step", color = "red", linewidth=2)
+    axs[1].hist(fastmtt_pt2, bins=bins, range = (xmin, xmax), label=r"$p_T^{FastMTT}$ - $\tau_2$", histtype="step", color = "deepskyblue", linewidth=2)
     axs[1].set_xlabel(r"$p_T$", fontsize = 14)
     axs[1].set_xlim(xmin, xmax)
     axs[1].legend()
-    axs[1].set_title(r"$p_T^{TPMT}$ vs $p_T^{MC}$ - $\tau_2$", loc = 'right', fontsize = 14)
+    axs[1].set_title(r"$p_T^{TPMT}$ vs $p_T^{MC}$ vs $p_T^{FastMTT}$ - $\tau_2$", loc = 'right', fontsize = 14)
     axs[1].grid(True)
     axs[1].set_xticks(np.linspace(xmin, xmax, 11)) 
     axs[1].text(1.22, 1.00, r'$\mathbf{CMS}$' + r' $\mathit{Simulation}$', 
@@ -135,6 +140,7 @@ def validation_plots_pt_mass(results, plots_folder, pairtype):
     # Hist for mass (unified)    
     axs[2].hist(regressed_mass, bins=bins, range = (mass_xmin, mass_xmax), label=r"TPMT $m_{\tau\tau}$", histtype="step", color = "red", linewidth=2)
     axs[2].hist(target_mass, bins=bins, range = (mass_xmin, mass_xmax), label=r"MC $m_{\tau\tau}$", histtype="step", color = "green", linewidth=2)
+    axs[2].hist(fastmtt_mass, bins=bins, range = (mass_xmin, mass_xmax), label=r"FastMTT $m_{\tau\tau}$", histtype="step", color = "deepskyblue", linewidth=2)
     axs[2].set_xlabel(r"$m_{\tau\tau}$", fontsize = 14)
     axs[2].legend()
     axs[2].set_title(r"$m_{\tau\tau}$ histogram", loc = 'right', fontsize = 14)

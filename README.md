@@ -112,13 +112,23 @@ To perform inference using a trained model, specify the `model_folder`, `weight_
 python inference_TPMT.py #inference_NF.py to inference with the Normalizing Flow
 ```
 
-The results, including reco and predicted masses, pt, eta, and phi values, are saved as a CSV file for further analysis in `model_folder/RESULTS/sample`.
+The results, including reco and predicted masses, pt, eta, and phi values, are saved as a CSV file for further analysis in `model_folder/results/sample`.
 
 
 ! Training and Inference scripts takes as optional command-line argument the
 `--gpu` parameter that point to the GPU ID to use for running the script. The default value is 0, meaning the first GPU will be used. If a GPU is not available, the script will fall back to CPU.
 
 
+## Final Plot Generation
+The repository provides two scripts for generating plots that analyze model performance and compare different reconstruction methods for $\tau\tau$ invariant mass estimation.
 
+1. `plot_results.py`
+This script generates plots to evaluate the regression performance of the model, focusing on the pT of the two tau leptons and on the $m_{\tau\tau}$ reconstruction.
+To run the script, specify the following parameters in the `config.py`:
+    - `model_folder:` Path to the trained model directory
+    - `test_sample`: Dataset used for evaluation
+    - `test_pairType`: Type of tau pair used in the analysis.
+2. `plot_comparisons.py`
+This script produces final comparison plots between different samples and invariant mass reconstruction methods. For each test sample, it generates a comparative plot of TPMT vs. FastMTT distributions, including Gaussian fits for further analysis.
 
 

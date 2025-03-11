@@ -106,10 +106,10 @@ def test(model, test_ds, dataset, device, use_tauprod):
                             'T_pt_1': T_pt_1, 'T_pt_2': T_pt_2
                             })
 
-    os.makedirs(config['model_folder']+ '/RESULTS', exist_ok=True)
-    os.makedirs(config['model_folder']+ '/RESULTS/'+ dataset[0], exist_ok=True)
+    os.makedirs(config['model_folder']+ '/results', exist_ok=True)
+    os.makedirs(config['model_folder']+ '/results/'+ dataset[0], exist_ok=True)
 
-    results.to_csv(config['model_folder'] + '/RESULTS/' + dataset[0] + '/results_inference_' + config['test_pairType'] +'.csv')
+    results.to_csv(config['model_folder'] + '/results/' + dataset[0] + '/results_inference_' + config['test_pairType'] +'.csv')
 
 
 

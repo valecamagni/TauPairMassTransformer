@@ -7,6 +7,8 @@ from utils_datasets import get_test_ds
 base_folder = "/gwpool/users/camagni/Di-tau/pre_processing/"
 config = get_config(base_folder)
 use_tauprod = config['use_tauprod']
+test_pairtype = config['test_pairType']
+model_folder = config['model_folder']
 
 # load model and dataset (for input sizes)
 te, dataset = get_test_ds(base_folder)
@@ -35,7 +37,8 @@ input_tensors = (taus, jets, met, mass, tauprods, padding_masks)
 torch.onnx.export(
     model, 
     input_tensors, 
-    "tpmt_model.onnx",  
+    #f"{model_folder}/tpmt_model_{test_pairtype}.onnx",  
+    f"{model_folder}/tpmt_model_allinclusive.onnx",  
     export_params=True,  
     opset_version=11,  
     do_constant_folding=True,  
@@ -52,28 +55,28 @@ torch.onnx.export(
     }
 )
 
-print("Model exported in tpmt_model.onnx")
+print("Model exported")
 
 
-import onnx
-import onnxruntime
-
-# Carica il modello ONNX
-onnx_model = onnx.load("tpmt_model.onnx")
-onnx.checker.check_model(onnx_model)  # Controlla che il modello sia valido
-
-# Test inferenza con ONNX Runtime
-ort_session = onnxruntime.InferenceSession("tpmt_model.onnx")
-
-print(padding_masks.numpy())
-# Esegui inferenza
-outputs = ort_session.run(None, {
-    "taus": taus.numpy(),
-    "jets": jets.numpy(),
-    "met": met.numpy(),
-    "mass": mass.numpy(),
-    "tauprods": tauprods.numpy() if use_tauprod else [],
-    "padding_masks": padding_masks.numpy(),
-})
-
-print(outputs)
+#import onnx
+#import onnxruntime
+#
+## Carica il modello ONNX
+#onnx_model = onnx.load("tpmt_model.onnx")
+#onnx.checker.check_model(onnx_model)  # Controlla che il modello sia valido
+#
+## Test inferenza con ONNX Runtime
+#ort_session = onnxruntime.InferenceSession("tpmt_model.onnx")
+#
+#print(padding_masks.numpy())
+## Esegui inferenza
+#outputs = ort_session.run(None, {
+#    "taus": taus.numpy(),
+#    "jets": jets.numpy(),
+#    "met": met.numpy(),
+#    "mass": mass.numpy(),
+#    "tauprods": tauprods.numpy() if use_tauprod else [],
+#    "padding_masks": padding_masks.numpy(),
+#})
+#
+#print(outputs)

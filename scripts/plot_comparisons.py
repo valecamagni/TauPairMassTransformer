@@ -6,26 +6,37 @@ import numpy as np
 import glob
 from config import get_config
 from utils_results import plot_roc_curve
+from scipy.optimize import curve_fit
 
 base_folder="/gwpool/users/camagni/Di-tau/pre_processing/"
 config = get_config(base_folder)
 model_folder = config['model_folder']
 pairType = config['test_pairType']
 
+
+if pairType == "ele_tau":
+    label = r"$e\tau$"
+elif pairType == "mu_tau":
+    label = r"$\mu\tau$"
+elif pairType == "tau_tau":
+    label = r"$\tau\tau$"
+    
+
+tar_masses = []
 tpmt_masses = []
-reco_masses = []
 fastmtt_masses = []
+reco_masses = []
 mc_masses = []
 folders = []
 
-for folder in os.listdir(model_folder+'/RESULTS/'):
+for folder in os.listdir(model_folder+'/results/'):
     if not folder.endswith('.png'):
         if (pairType == "tau_tau") & (folder == "TTToSemiLeptonic"): continue
         if (pairType == "ele_tau") & (folder == "TTToHadronic"): continue
         if (pairType == "mu_tau") & (folder == "TTToHadronic"): continue
         folders.append(folder)
         print(folder)
-        df = pd.read_csv(glob.glob(f"{model_folder}/RESULTS/{folder}/results_inference_{pairType}*.csv")[0])
+        df = pd.read_csv(glob.glob(f"{model_folder}/results/{folder}/results_inference_{pairType}*.csv")[0])
         fastmtt_file = glob.glob(f'/gwpool/users/camagni/Di-tau/fastmtt/TIDAL/Tools/FastMTT/DATA/{folder}/fastmtt/{pairType}.parquet')
         fastmtt = ak.from_parquet(fastmtt_file)
         fastmtt_masses.append(fastmtt['FastMTT_mass'])
@@ -33,56 +44,228 @@ for folder in os.listdir(model_folder+'/RESULTS/'):
         reco_masses.append(df['reco_mass'])
         if "SUSY" in folder:
             mc_masses.append([int(folder[-3:])]*df['tar_mass'].shape[0])
+            tar_masses.append(df['tar_mass'])
         elif "GluGluH" in folder:
             mc_masses.append([125.0]*df['tar_mass'].shape[0])
+            tar_masses.append(df['tar_mass'])
         elif "DY" in folder:
             mc_masses.append([90.0]*df['tar_mass'].shape[0])
+            tar_masses.append(df['tar_mass'])
         elif "TTT" in folder:
             mc_masses.append([50.0]*df['tar_mass'].shape[0])
+            tar_masses.append(df['tar_mass'])
 
-fig = plt.figure(figsize = (6,6))
+
+if pairType == "tau_tau":
+    ylim = 0.3
+else:
+    ylim = 0.2
+
+
+# TPMT
+fig = plt.figure(figsize=(6,6))
 xmin, xmax, bins = 0, 400, 200
 colors = ["blue", "red", "green", "violet", "grey"]
+
 for num, ds in enumerate(tpmt_masses):
-    plt.hist(tpmt_masses[num], bins=bins, alpha=0.7, range = (xmin, xmax),  weights=np.ones_like(tpmt_masses[num]) / len(tpmt_masses[num]), histtype='step', label=f'{folders[num]}', color=colors[num], )
+    plt.hist(tpmt_masses[num], bins=bins, alpha=0.7, range=(xmin, xmax),  
+             weights=np.ones_like(tpmt_masses[num]) / len(tpmt_masses[num]),  
+             histtype='step', label=f'{folders[num]}', color=colors[num])
 
 plt.xticks(np.linspace(xmin, xmax, 11))
-plt.title(r"$m_{\tau\tau}^{TPMT}$ histograms" + f" - {pairType}", fontsize=16)
-plt.xlabel(r'$m_{\tau\tau}^{TPMT}$')
-plt.ylabel('Frquency')
+plt.title(r"$m_{\tau\tau}^{TPMT}$ histograms" + f" - {label}", fontsize=16, loc = 'right')
+plt.xlabel(r'$m_{\tau\tau}^{TPMT}$', fontsize = 14)
+plt.ylabel('Frequency', fontsize = 14)
 plt.xlim(xmin, xmax)
-plt.ylim(0, 0.2)
-plt.legend(loc = "upper left", fontsize = 8)
+plt.ylim(0, ylim)
+plt.legend(loc="upper center", fontsize=8)
 plt.grid(True)
-plt.tight_layout() 
-plt.savefig(f'{model_folder}/RESULTS/overall_masses_{pairType}.png')
+
+plt.text(0.02, 1.00, r'$\mathbf{CMS}$' + r' $\mathit{Simulation}$', 
+         transform=plt.gca().transAxes, fontsize=14, verticalalignment='bottom', 
+         horizontalalignment='left')
+
+plt.text(0.02, 0.95, r'Private Work', 
+         transform=plt.gca().transAxes, fontsize=14, verticalalignment='bottom', 
+         horizontalalignment='left')
+
+plt.tight_layout()  
+plt.savefig(f'{model_folder}/results/TPMT_masses_{pairType}.png', dpi=300)
 
 
-## ROC curve
+# FastMTT
+fig = plt.figure(figsize=(6,6))
+xmin, xmax, bins = 0, 400, 200
+colors = ["blue", "red", "green", "violet", "grey"]
+
+for num, ds in enumerate(tpmt_masses):
+    plt.hist(ak.to_numpy(fastmtt_masses[num]), bins=bins, alpha=0.7, range=(xmin, xmax),  
+             weights=np.ones_like(ak.to_numpy(fastmtt_masses[num])) / len(ak.to_numpy(fastmtt_masses[num])),  
+             histtype='step', label=f'{folders[num]}', color=colors[num])
+
+plt.xticks(np.linspace(xmin, xmax, 11))
+plt.title(r"$m_{\tau\tau}^{FastMTT}$ histograms" + f" - {label}", fontsize=16, loc = 'right')
+plt.xlabel(r'$m_{\tau\tau}^{FastMTT}$', fontsize = 14)
+plt.ylabel('Frequency', fontsize = 14)
+plt.xlim(xmin, xmax)
+plt.ylim(0, ylim)
+plt.legend(loc="upper right", fontsize=8)
+plt.grid(True)
+
+plt.text(0.02, 1.00, r'$\mathbf{CMS}$' + r' $\mathit{Simulation}$', 
+         transform=plt.gca().transAxes, fontsize=14, verticalalignment='bottom', 
+         horizontalalignment='left')
+
+plt.text(0.02, 0.95, r'Private Work', 
+         transform=plt.gca().transAxes, fontsize=14, verticalalignment='bottom', 
+         horizontalalignment='left')
+
+plt.tight_layout()  
+plt.savefig(f'{model_folder}/results/FastMTT_masses_{pairType}.png', dpi=300)
+
+
+
+# MonteCarlo
+fig = plt.figure(figsize=(6,6))
+xmin, xmax, bins = 0, 400, 200
+colors = ["blue", "red", "green", "violet", "grey"]
+
+for num, ds in enumerate(tar_masses):
+    plt.hist(ak.to_numpy(tar_masses[num]), bins=bins, alpha=0.7, range=(xmin, xmax),  
+             weights=np.ones_like(ak.to_numpy(tar_masses[num])) / len(ak.to_numpy(tar_masses[num])),  
+             histtype='step', label=f'{folders[num]}', color=colors[num])
+
+plt.xticks(np.linspace(xmin, xmax, 11))
+plt.title(r"$m_{\tau\tau}^{MC}$ histograms" + f" - {label}", fontsize=16, loc = 'right')
+plt.xlabel(r'$m_{\tau\tau}^{MC}$', fontsize = 14)
+plt.ylabel('Frequency', fontsize = 14)
+plt.xlim(xmin, xmax)
+plt.legend(loc="upper right", fontsize=8)
+plt.grid(True)
+
+plt.text(0.02, 1.00, r'$\mathbf{CMS}$' + r' $\mathit{Simulation}$', 
+         transform=plt.gca().transAxes, fontsize=14, verticalalignment='bottom', 
+         horizontalalignment='left')
+
+plt.text(0.02, 0.95, r'Private Work', 
+         transform=plt.gca().transAxes, fontsize=14, verticalalignment='bottom', 
+         horizontalalignment='left')
+
+plt.tight_layout()  
+plt.savefig(f'{model_folder}/results/MC_masses_{pairType}.png', dpi=300)
+
+
+
+
+# ROC curve
 plot_roc_curve(np.array(mc_masses[0] + mc_masses[1]),  
                np.array(pd.concat([tpmt_masses[0], tpmt_masses[1]], axis = 0)), 
-               np.array(pd.concat([pd.Series(ak.to_numpy(fastmtt_masses[0])), pd.Series(ak.to_numpy(fastmtt_masses[1]))], axis = 0)), f'{model_folder}/RESULTS/', pairType)
+               np.array(pd.concat([pd.Series(ak.to_numpy(fastmtt_masses[0])), pd.Series(ak.to_numpy(fastmtt_masses[1]))], axis = 0)), f'{model_folder}/results/', pairType)
 
 
-#fig = plt.figure(figsize = (6,6))
+
+
 #xmin, xmax, bins = 0, 400, 200
-#colors = ["blue", "red", "green", "violet", "grey"]
-#for num, ds in enumerate(tpmt_masses):
-#    plt.hist(ak.to_numpy(fastmtt_masses[num]), bins=bins, alpha=0.7, range = (xmin, xmax),  weights=np.ones_like(ak.to_numpy(fastmtt_masses[num])) / len(ak.to_numpy(fastmtt_masses[num])), histtype='step', label=f'{folders[num]}', color=colors[num], )
+#colors = ["blue", "red"]
 #
-#plt.xticks(np.linspace(xmin, xmax, 11))
-#plt.title(r"$m_{\tau\tau}^{FastMTT}$ histograms", fontsize=16)
-#plt.xlabel(r'$m_{\tau\tau}^{FastMTT}$')
-#plt.ylabel('Frquency')
-#plt.xlim(xmin, xmax)
-#plt.ylim(0, 0.2)
-#plt.legend(loc = "upper left", fontsize = 8)
-#plt.grid(True)
-#plt.tight_layout() 
-#plt.savefig(f'{model_folder}/RESULTS/FastMTT_masses.png')
+#for i, (tpmt, fastmtt) in enumerate(zip(tpmt_masses, fastmtt_masses)):
+#
+#    fig = plt.figure(figsize=(6,6))
+#
+#    plt.hist(tpmt, bins=bins, alpha=0.7, range=(xmin, xmax), 
+#             histtype='step', label=r'$m_{\tau\tau}^{TPMT}$', color=colors[0])
+#    
+#    plt.hist(fastmtt, bins=bins, alpha=0.7, range=(xmin, xmax),  
+#             histtype='step', label=r'$m_{\tau\tau}^{FastMTT}$', color=colors[1])
+#
+#    plt.xticks(np.linspace(xmin, xmax, 11))
+#    plt.title(f"{folders[i]}" + f" - {label}", fontsize=12, loc='right')
+#    plt.xlabel(r'$m_{\tau\tau}$', fontsize=12)
+#    plt.ylabel('Frequency', fontsize=12)
+#    plt.xlim(xmin, xmax)
+#    plt.legend(loc="upper center", fontsize=12)
+#    plt.grid(True)
+#
+#    plt.text(0.02, 1.00, r'$\mathbf{CMS}$' + r' $\mathit{Simulation}$', 
+#             transform=plt.gca().transAxes, fontsize=12, verticalalignment='bottom', 
+#             horizontalalignment='left')
+#
+#    plt.text(0.02, 0.96, r'Private Work', 
+#             transform=plt.gca().transAxes, fontsize=12, verticalalignment='bottom', 
+#             horizontalalignment='left')
+#
+#    plt.tight_layout()
+#    
+#    plt.savefig(f'{model_folder}/results/masses_pair_{folders[i]}_{pairType}.png', dpi=300)
+#    plt.close()
 
 
 
 
+def gaussian(x, A, mu, sigma):
+    return A * np.exp(-0.5 * ((x - mu) / sigma) ** 2)
 
+xmin, xmax, bins = 0, 400, 120
+colors = ["blue", "red"]
 
+for i, (tpmt, fastmtt) in enumerate(zip(tpmt_masses, fastmtt_masses)):
+
+    if "M350" in folders[i]:
+        where = "center left"
+    else:
+        where = "upper right"
+
+    fig = plt.figure(figsize=(6,6))
+
+    tpmt = np.array(tpmt)
+    fastmtt = np.array(fastmtt)
+
+    hist_tpmt, bin_edges_tpmt = np.histogram(tpmt, bins=bins, range=(xmin, xmax))
+    hist_fastmtt, bin_edges_fastmtt = np.histogram(fastmtt, bins=bins, range=(xmin, xmax))
+
+    bin_centers_tpmt = (bin_edges_tpmt[:-1] + bin_edges_tpmt[1:]) / 2
+    bin_centers_fastmtt = (bin_edges_fastmtt[:-1] + bin_edges_fastmtt[1:]) / 2
+
+    bin_centers_tpmt = np.array(bin_centers_tpmt)
+    hist_tpmt = np.array(hist_tpmt)
+
+    bin_centers_fastmtt = np.array(bin_centers_fastmtt)
+    hist_fastmtt = np.array(hist_fastmtt)
+
+    initial_guess_tpmt = [max(hist_tpmt), np.mean(tpmt), np.std(tpmt)]
+    initial_guess_fastmtt = [max(hist_fastmtt), np.mean(fastmtt), np.std(fastmtt)]
+
+    popt_tpmt, _ = curve_fit(gaussian, bin_centers_tpmt, hist_tpmt, p0=initial_guess_tpmt)
+    popt_fastmtt, _ = curve_fit(gaussian, bin_centers_fastmtt, hist_fastmtt, p0=initial_guess_fastmtt)
+
+    x_fit = np.linspace(xmin, xmax, 300)
+
+    plt.hist(tpmt, bins=bins, alpha=0.7, range=(xmin, xmax), 
+             histtype='step', label=r'$m_{\tau\tau}^{TPMT}$', color=colors[0])
+
+    plt.hist(fastmtt, bins=bins, alpha=0.7, range=(xmin, xmax),  
+             histtype='step', label=r'$m_{\tau\tau}^{FastMTT}$', color=colors[1])
+
+    plt.plot(x_fit, gaussian(x_fit, *popt_tpmt), linestyle='dashed', color=colors[0], label=f'TPMT Fit (μ={popt_tpmt[1]:.1f}, σ={popt_tpmt[2]:.1f})')
+    plt.plot(x_fit, gaussian(x_fit, *popt_fastmtt), linestyle='dashed', color=colors[1], label=f'FastMTT Fit (μ={popt_fastmtt[1]:.1f}, σ={popt_fastmtt[2]:.1f})')
+
+    plt.xticks(np.linspace(xmin, xmax, 11))
+    plt.title(f"{folders[i]}" + f" - {label}", fontsize=12, loc='right')
+    plt.xlabel(r'$m_{\tau\tau}$', fontsize=12)
+    plt.ylabel('Frequency', fontsize=12)
+    plt.xlim(xmin, xmax)
+    plt.legend(loc=where, fontsize=10)
+    plt.grid(True)
+
+    plt.text(0.02, 1.00, r'$\mathbf{CMS}$' + r' $\mathit{Simulation}$', 
+             transform=plt.gca().transAxes, fontsize=12, verticalalignment='bottom', 
+             horizontalalignment='left')
+
+    plt.text(0.02, 0.95, r'Private Work', 
+             transform=plt.gca().transAxes, fontsize=12, verticalalignment='bottom', 
+             horizontalalignment='left')
+
+    plt.tight_layout()
+    
+    plt.savefig(f'{model_folder}/results/masses_pair_{folders[i]}_{pairType}.png', dpi=300)
+    plt.close()

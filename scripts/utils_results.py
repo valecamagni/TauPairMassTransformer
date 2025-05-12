@@ -5,6 +5,7 @@ from matplotlib.colors import LogNorm
 import os
 from scipy.optimize import curve_fit
 from sklearn.metrics import roc_curve, roc_auc_score
+from matplotlib.ticker import FormatStrFormatter
 
 
 # Define the Gaussian function
@@ -12,7 +13,7 @@ def gaussian(x, a, b, c):
     return a * np.exp(-((x - b) ** 2) / (2 * c ** 2))
 
 
-def validation_plots_pt_mass(results, fastmtt, plots_folder, pairtype):
+def validation_plots_pt_mass(results, plots_folder, pairtype): #fastmtt):
 
     target_pt1 = results['T_pt_1'].to_numpy()
     target_pt2 = results['T_pt_2'].to_numpy()
@@ -20,23 +21,25 @@ def validation_plots_pt_mass(results, fastmtt, plots_folder, pairtype):
     regressed_pt2 = results['P_pt_2'].to_numpy()
     target_mass = results['tar_mass'].to_numpy()
     regressed_mass = results['pred_mass'].to_numpy()
-    fastmtt_pt1 = fastmtt['FastMTT_pt_1'].to_numpy()
-    fastmtt_pt2 = fastmtt['FastMTT_pt_2'].to_numpy()
-    fastmtt_mass = fastmtt['FastMTT_mass'].to_numpy()
+    #fastmtt_pt1 = fastmtt['FastMTT_pt_1'].to_numpy()
+    #fastmtt_pt2 = fastmtt['FastMTT_pt_2'].to_numpy()
+    #fastmtt_mass = fastmtt['FastMTT_mass'].to_numpy()
 
     xmin = 0
     xmax = 250
     bins = 100
+    mass_xmin = 0
+    mass_xmax = 250
 
-    if "TTTo" in plots_folder:
-        mass_xmin = 0
-        mass_xmax = 250
-    elif "M350" in plots_folder:
-        mass_xmin = 200
-        mass_xmax = 500
-    else:
-        mass_xmin = 50
-        mass_xmax = 200    
+    #if "TTTo" in plots_folder:
+    #    mass_xmin = 0
+    #    mass_xmax = 250
+    #elif "M350" in plots_folder:
+    #    mass_xmin = 200
+    #    mass_xmax = 500
+    #else:
+    #    mass_xmin = 50
+    #    mass_xmax = 200    
 
     ##### 2D Histogram plots for pt (separate for tau1 and tau2) and mass (single plot)
     f1, axs = plt.subplots(1, 3, figsize=(18, 6))
@@ -54,9 +57,6 @@ def validation_plots_pt_mass(results, fastmtt, plots_folder, pairtype):
             transform=axs[0].transAxes, fontsize=14, verticalalignment='bottom', 
             horizontalalignment='left')
 
-    axs[0].text(0.02, 0.95, r'Private Work', 
-            transform=axs[0].transAxes, fontsize=14, verticalalignment='bottom', 
-            horizontalalignment='left')
     f1.colorbar(im1[3], ax=axs[0])
     # Plot for pt (Tau2)
     im2 = axs[1].hist2d(target_pt2, regressed_pt2, bins=bins, range = [[xmin, xmax], [xmin, xmax]], norm=LogNorm())
@@ -72,9 +72,6 @@ def validation_plots_pt_mass(results, fastmtt, plots_folder, pairtype):
             transform=axs[0].transAxes, fontsize=14, verticalalignment='bottom', 
             horizontalalignment='left')
 
-    axs[1].text(1.46, 0.95, r'Private Work', 
-            transform=axs[0].transAxes, fontsize=14, verticalalignment='bottom', 
-            horizontalalignment='left')
     f1.colorbar(im2[3], ax=axs[1])
     # Plot for mass (unified)
     im3 = axs[2].hist2d(target_mass, regressed_mass, bins=bins, range = [[mass_xmin, mass_xmax], [mass_xmin, mass_xmax]], norm=LogNorm())
@@ -90,73 +87,67 @@ def validation_plots_pt_mass(results, fastmtt, plots_folder, pairtype):
             transform=axs[0].transAxes, fontsize=14, verticalalignment='bottom', 
             horizontalalignment='left')
 
-    axs[2].text(2.9, 0.95, r'Private Work', 
-            transform=axs[0].transAxes, fontsize=14, verticalalignment='bottom', 
-            horizontalalignment='left')
+
     f1.colorbar(im3[3], ax=axs[2])
 
     plt.subplots_adjust(left=0.05, right=0.95, top=0.90, bottom=0.1, wspace=0.15, hspace=0.1)
     f1.savefig(os.path.join(plots_folder, "2D_histograms_pt_mass_{pairtype}.png".format(pairtype=pairtype)), dpi = 300)
 
     ##### 1D Histograms for pt (separate for tau1 and tau2) and mass (single plot)
-    f2, axs = plt.subplots(1, 3, figsize=(18, 6))
+    f2, axs = plt.subplots(1, 3, figsize=(20, 8))
     # Hist for pt (Tau1)
-    axs[0].hist(target_pt1, bins=bins, range = (xmin, xmax), label=r"$p_T^{MC}$ - $\tau_1$", histtype="step", color = "green", linewidth=2)
-    axs[0].hist(regressed_pt1, bins=bins, range = (xmin, xmax), label=r"$p_T^{TPMT}$ - $\tau_1$", histtype="step", color = "red", linewidth=2)
-    axs[0].hist(fastmtt_pt1, bins=bins, range = (xmin, xmax), label=r"$p_T^{FastMTT}$ - $\tau_1$", histtype="step", color = "deepskyblue", linewidth=2)
-    axs[0].set_xlabel(r"$p_T$", fontsize = 14)
-    axs[0].set_ylabel(r"Frequency", fontsize = 14)
-    axs[0].set_xlim(xmin, xmax)
-    axs[0].legend()
-    axs[0].set_title(r"$p_T^{TPMT}$ vs $p_T^{MC}$ vs $p_T^{FastMTT}$ - $\tau_1$", loc = 'right', fontsize = 14)
+    #axs[0].hist(target_pt1, bins=bins, range = (xmin, xmax), label=r"$p_T^{MC}$ - $\tau_1$", histtype="step", color = "green", linewidth=2)
+    axs[0].hist((regressed_pt1-target_pt1)/(target_pt1), bins=bins, range = (-1, 1), label="TPMT", histtype="step", color = "dodgerblue", linewidth=2)
+    #axs[0].hist((fastmtt_pt1-target_pt1)/(target_pt1), bins=bins, range = (-1, 1), label="FastMTT", histtype="step", color = "darkorange", linewidth=2)
+    axs[0].set_xlabel(r"$\frac{p_T^{REG}-p_T^{MC}}{p_T^{MC}}}$", fontsize = 22)
+    axs[0].set_ylabel(r"Frequency", fontsize = 12)
+    axs[0].set_xlim((-1, 1))
+    axs[0].legend(fontsize = 14)
+    axs[0].set_title(r"$p_T$ resolution comparison - $\tau_1$", loc = 'right', fontsize = 16)
     axs[0].grid(True)
-    axs[0].set_xticks(np.linspace(xmin, xmax, 11)) 
+    axs[0].set_xticks(np.linspace(-1, 1, 7)) 
+    axs[0].xaxis.set_major_formatter(FormatStrFormatter('%.2f'))
+    axs[0].tick_params(axis='both', which='major', labelsize=14)
     axs[0].text(0.02, 1.00, r'$\mathbf{CMS}$' + r' $\mathit{Simulation}$', 
             transform=axs[0].transAxes, fontsize=14, verticalalignment='bottom', 
             horizontalalignment='left')
 
-    axs[0].text(0.02, 0.95, r'Private Work', 
-            transform=axs[0].transAxes, fontsize=14, verticalalignment='bottom', 
-            horizontalalignment='left') 
+
     # Hist for pt (Tau2)
-    axs[1].hist(target_pt2, bins=bins, range = (xmin, xmax),label=r"$p_T^{MC}$ - $\tau_2$", histtype="step", color= "green", linewidth=2)
-    axs[1].hist(regressed_pt2, bins=bins, range = (xmin, xmax),label=r"$p_T^{TPMT}$ - $\tau_2$", histtype="step", color = "red", linewidth=2)
-    axs[1].hist(fastmtt_pt2, bins=bins, range = (xmin, xmax), label=r"$p_T^{FastMTT}$ - $\tau_2$", histtype="step", color = "deepskyblue", linewidth=2)
-    axs[1].set_xlabel(r"$p_T$", fontsize = 14)
-    axs[1].set_xlim(xmin, xmax)
-    axs[1].legend()
-    axs[1].set_title(r"$p_T^{TPMT}$ vs $p_T^{MC}$ vs $p_T^{FastMTT}$ - $\tau_2$", loc = 'right', fontsize = 14)
+    #axs[1].hist(target_pt2, bins=bins, range = (xmin, xmax),label=r"$p_T^{MC}$ - $\tau_2$", histtype="step", color= "green", linewidth=2)
+    axs[1].hist((regressed_pt2-target_pt2)/(target_pt2), bins=bins, range = (-1, 1), label="TPMT", histtype="step", color = "dodgerblue", linewidth=2)
+    #axs[1].hist((fastmtt_pt2-target_pt2)/(target_pt2), bins=bins, range = (-1, 1), label="FastMTT", histtype="step", color = "darkorange", linewidth=2)
+    axs[1].set_xlabel(r"$\frac{p_T^{REG}-p_T^{MC}}{p_T^{MC}}}$", fontsize = 22)
+    axs[1].set_ylabel(r"Frequency", fontsize = 12)
+    axs[1].set_xlim(-1, 1)
+    axs[1].legend(fontsize = 14)
+    axs[1].set_title(r"$p_T$ resolution comparison - $\tau_2$", loc = 'right', fontsize = 16)
     axs[1].grid(True)
-    axs[1].set_xticks(np.linspace(xmin, xmax, 11)) 
+    axs[1].set_xticks(np.linspace(-1, 1, 7)) 
+    axs[1].xaxis.set_major_formatter(FormatStrFormatter('%.2f'))
+    axs[1].tick_params(axis='both', which='major', labelsize=14)
     axs[1].text(1.22, 1.00, r'$\mathbf{CMS}$' + r' $\mathit{Simulation}$', 
             transform=axs[0].transAxes, fontsize=14, verticalalignment='bottom', 
             horizontalalignment='left')
-
-    axs[1].text(1.22, 0.95, r'Private Work', 
-            transform=axs[0].transAxes, fontsize=14, verticalalignment='bottom', 
-            horizontalalignment='left')  
     
 
     # Hist for mass (unified)    
-    axs[2].hist(regressed_mass, bins=bins, range = (mass_xmin, mass_xmax), label=r"TPMT $m_{\tau\tau}$", histtype="step", color = "red", linewidth=2)
-    axs[2].hist(target_mass, bins=bins, range = (mass_xmin, mass_xmax), label=r"MC $m_{\tau\tau}$", histtype="step", color = "green", linewidth=2)
-    axs[2].hist(fastmtt_mass, bins=bins, range = (mass_xmin, mass_xmax), label=r"FastMTT $m_{\tau\tau}$", histtype="step", color = "deepskyblue", linewidth=2)
-    axs[2].set_xlabel(r"$m_{\tau\tau}$", fontsize = 14)
-    axs[2].legend()
-    axs[2].set_title(r"$m_{\tau\tau}$ histogram", loc = 'right', fontsize = 14)
+    axs[2].hist((regressed_mass-target_mass)/(target_mass), bins=bins, range = (-1, 1), label="TPMT", histtype="step", color = "dodgerblue", linewidth=2)
+    #axs[2].hist((fastmtt_mass-target_mass)/(target_mass), bins=bins, range = (-1, 1), label="FastMTT", histtype="step", color = "darkorange", linewidth=2)
+    axs[2].set_xlabel(r"$\frac{m_{\tau\tau}^{REG} - m_{\tau\tau}^{MC}}{m_{\tau\tau}^{MC}}$", fontsize = 22)
+    axs[2].set_ylabel(r"Frequency", fontsize = 12)
+    axs[2].set_xlim(-1, 1)
+    axs[2].legend(fontsize = 14)
+    axs[2].set_title(r"$m_{\tau\tau}$ resolution comparison", loc = 'right', fontsize = 16)
     axs[2].grid(True)
-    axs[2].set_xticks(np.linspace(mass_xmin, mass_xmax, 11))  # More ticks
-    axs[2].set_xlim(mass_xmin, mass_xmax)
-
+    axs[2].set_xticks(np.linspace(-1, 1, 7)) 
+    axs[2].xaxis.set_major_formatter(FormatStrFormatter('%.2f'))
+    axs[2].tick_params(axis='both', which='major', labelsize=14)
     axs[2].text(2.42, 1.00, r'$\mathbf{CMS}$' + r' $\mathit{Simulation}$', 
             transform=axs[0].transAxes, fontsize=14, verticalalignment='bottom', 
             horizontalalignment='left')
-
-    axs[2].text(2.42, 0.95, r'Private Work', 
-            transform=axs[0].transAxes, fontsize=14, verticalalignment='bottom', 
-            horizontalalignment='left')  
     
-    plt.subplots_adjust(left=0.05, right=0.95, top=0.90, bottom=0.1, wspace=0.2, hspace=0.1)
+    plt.subplots_adjust(left=0.05, right=0.95, top=0.85, bottom=0.15, wspace=0.22, hspace=0.1)
     f2.savefig(os.path.join(plots_folder, "1D_histograms_pt_mass_{pairtype}.png".format(pairtype=pairtype)), dpi = 300)
 
     #### Delta plots for pt (separate for tau1 and tau2) and mass (single plot)
@@ -177,9 +168,6 @@ def validation_plots_pt_mass(results, fastmtt, plots_folder, pairtype):
             transform=axs[0].transAxes, fontsize=14, verticalalignment='bottom', 
             horizontalalignment='left')
 
-    axs[0].text(0.02, 0.95, r'Private Work', 
-            transform=axs[0].transAxes, fontsize=14, verticalalignment='bottom', 
-            horizontalalignment='left')
     f3.colorbar(im1[3], ax=axs[0])
     # Delta pt (difference between regressed and target pt for tau2)
     im2 = axs[1].hist2d(target_pt1, target_pt2, bins=bins, range = [[0, 400], [0, 400]], norm=LogNorm())
@@ -195,9 +183,6 @@ def validation_plots_pt_mass(results, fastmtt, plots_folder, pairtype):
             transform=axs[0].transAxes, fontsize=14, verticalalignment='bottom', 
             horizontalalignment='left')
 
-    axs[1].text(1.46, 0.95, r'Private Work', 
-            transform=axs[0].transAxes, fontsize=14, verticalalignment='bottom', 
-            horizontalalignment='left')
     f3.colorbar(im2[3], ax=axs[1])
     # Delta mass (single plot)
     im3 = axs[2].hist2d(regressed_pt1, regressed_pt2, bins=bins, range = [[0, 400], [0, 400]], norm=LogNorm())
@@ -213,9 +198,6 @@ def validation_plots_pt_mass(results, fastmtt, plots_folder, pairtype):
             transform=axs[0].transAxes, fontsize=14, verticalalignment='bottom', 
             horizontalalignment='left')
 
-    axs[2].text(2.9, 0.95, r'Private Work', 
-            transform=axs[0].transAxes, fontsize=14, verticalalignment='bottom', 
-            horizontalalignment='left')
     f3.colorbar(im3[3], ax=axs[2])
         
     plt.subplots_adjust(left=0.05, right=0.95, top=0.90, bottom=0.1, wspace=0.15, hspace=0.1)
@@ -272,10 +254,6 @@ def plot_response_vs_pt(results, save_path):
             transform=axs[0].transAxes, fontsize=14, verticalalignment='bottom', 
             horizontalalignment='left')
 
-    axs[0].text(0.02, 0.95, r'Private Work', 
-            transform=axs[0].transAxes, fontsize=14, verticalalignment='bottom', 
-            horizontalalignment='left')
-    
     axs[1].errorbar(bin_centers_reco_tau2, means_reco_tau2, yerr=rmse_reco_tau2, fmt='o-', label=r'$\tau_2$', color='blue')
     axs[1].set_xlabel(r'$p_T^{RECO}$', fontsize = 14)
     axs[1].set_ylabel(r'$p_T^{TPMT}$/$p_T^{MC}$', fontsize = 14)
@@ -291,10 +269,6 @@ def plot_response_vs_pt(results, save_path):
             transform=axs[0].transAxes, fontsize=14, verticalalignment='bottom', 
             horizontalalignment='left')
 
-    axs[1].text(1.12, 0.95, r'Private Work', 
-            transform=axs[0].transAxes, fontsize=14, verticalalignment='bottom', 
-            horizontalalignment='left')
-        
     plt.subplots_adjust(left=0.05, right=0.95, top=0.90, bottom=0.1, wspace=0.1, hspace=0.1)
 
     plt.savefig(save_path, dpi = 300)

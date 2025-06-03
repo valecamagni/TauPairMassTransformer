@@ -4,6 +4,21 @@ from numba import njit
 import matplotlib.pyplot as plt
 import mplhep as hep
 import pandas as pd
+import argparse
+
+
+
+
+def str2bool(v):
+    if isinstance(v, bool):
+        return v
+    if v.lower() in ('yes', 'true', 't', '1'):
+        return True
+    elif v.lower() in ('no', 'false', 'f', '0'):
+        return False
+    else:
+        raise argparse.ArgumentTypeError('Boolean value expected.')
+
 
 
 @njit
@@ -26,13 +41,14 @@ def tau_tau_preprocessing(dataset, pt_threshold, is_true_tau = True):
     indices = []
     gen_taus = []
     selected_jets = []
+
     for num, event in enumerate(dataset):
         if len(event.Tau)>1:
             count = 0
             for tau in event.Tau:
                 if is_true_tau:
                     if (tau.genPartFlav==5) and (tau.pt>pt_threshold) and (tau.genPartIdx in [0,1]) and (tau.decayMode not in [5,6]):
-                        count = count + 1
+                        count += 1
                 else:
                     if (tau.genPartFlav not in [3,4,5]) and (tau.pt > pt_threshold) and (tau.decayMode not in [5,6]):
                         count += 1
@@ -40,7 +56,8 @@ def tau_tau_preprocessing(dataset, pt_threshold, is_true_tau = True):
             if (count!=2) or (len(event.Tau.genPartFlav)>2) or (not has_opposite_charges(event.Tau.charge)): continue
             else: 
                 gen_taus_event = []
-                for tau in event.Tau:
+                
+                for n, tau in enumerate(event.Tau):
                     if is_true_tau: 
                         genpart_pdgId = event.GenPart[event.GenVisTau[tau.genPartIdx].genPartIdxMother].pdgId
                         if abs(genpart_pdgId) == 15:
@@ -51,8 +68,13 @@ def tau_tau_preprocessing(dataset, pt_threshold, is_true_tau = True):
                             gen_taus_event.append([tau_pt, tau_eta, tau_phi, tau_mass])
                         else: continue
                     else:
-                        gen_taus_event.append([tau.pt, tau.eta, tau.phi, tau.mass])
+                        min_idx, min_dr = match_gen_particle(tau, event.GenPart)
 
+                        if (min_idx >= 0) and (min_dr < 0.4):
+                            gen_taus_event.append([tau.pt, tau.eta, tau.phi, tau.mass])
+                        else:
+                            continue
+                            
                 if len(gen_taus_event) in [0,1]: continue
                 else:
                     indices.append(num)
@@ -204,8 +226,9 @@ def store_gen_level_information_plus_jets(dataset, pairType, is_true_tau = True)
     for num, event in enumerate(dataset):
         gen_taus_event = []
 
-
+        # ______________
         # First tau 
+        # ______________
 
         tau = event.Tau[0]
 
@@ -219,15 +242,16 @@ def store_gen_level_information_plus_jets(dataset, pairType, is_true_tau = True)
                 tau_mass = event.GenPart[event.GenVisTau[tau.genPartIdx].genPartIdxMother].mass
                 gen_taus_event.append([tau_pt, tau_eta, tau_phi, tau_mass])
         else:
-            gen_taus_event.append([tau.pt, tau.eta, tau.phi, tau.mass])
+            min_idx, min_dr = match_gen_particle(tau, event.GenPart)
 
+            if (min_idx >= 0) and (min_dr < 0.4):
+                gen_taus_event.append([tau.pt, tau.eta, tau.phi, tau.mass])
+            else:
+                continue
 
+        # ________________
         # Second tau
-        
-        if is_true_tau:     
-            pdgId_mother_target = 15
-        else: 
-            pdgId_mother_target = 24
+        # ________________
         
         if pairType == "ele_tau":
             idx = event.Electron[0].genPartIdx
@@ -236,23 +260,34 @@ def store_gen_level_information_plus_jets(dataset, pairType, is_true_tau = True)
             idx = event.Muon[0].genPartIdx
             pdgId_target = 13     
                 
-        pdgId_genpart = event.GenPart[idx].pdgId
-        pdgId_genpart_mother = event.GenPart[event.GenPart[idx].genPartIdxMother].pdgId           
-
-
-        if (abs(pdgId_genpart)==pdgId_target) and (abs(pdgId_genpart_mother)==pdgId_mother_target):
-            if is_true_tau: 
+    
+        if is_true_tau: 
+            pdgId_genpart = event.GenPart[idx].pdgId
+            pdgId_genpart_mother = event.GenPart[event.GenPart[idx].genPartIdxMother].pdgId      
+            if (abs(pdgId_genpart)==pdgId_target) and (abs(pdgId_genpart_mother)==15):
                 tau_pt = event.GenPart[event.GenPart[idx].genPartIdxMother].pt
                 tau_eta = event.GenPart[event.GenPart[idx].genPartIdxMother].eta
                 tau_phi = event.GenPart[event.GenPart[idx].genPartIdxMother].phi
                 tau_mass = event.GenPart[event.GenPart[idx].genPartIdxMother].mass
                 gen_taus_event.append([tau_pt, tau_eta, tau_phi, tau_mass])
-            else:
-                if pairType == 'ele_tau':
-                    gen_taus_event.append([event.Electron[0].pt, event.Electron[0].eta, event.Electron[0].phi, event.Electron[0].mass])
-                elif pairType == 'mu_tau':
-                    gen_taus_event.append([event.Muon[0].pt, event.Muon[0].eta, event.Muon[0].phi, event.Muon[0].mass])
+        else:
+            if pairType == 'ele_tau':
+                
+                min_idx, min_dr = match_gen_particle(event.Electron[0], event.GenPart)
 
+                if (min_idx >= 0) and (min_dr < 0.4):
+                    gen_taus_event.append([event.Electron[0].pt, event.Electron[0].eta, event.Electron[0].phi, event.Electron[0].mass])
+                else:
+                    continue
+
+            elif pairType == 'mu_tau':
+                min_idx, min_dr = match_gen_particle(event.Muon[0], event.GenPart)
+
+                if (min_idx >= 0) and (min_dr < 0.4):
+                    gen_taus_event.append([event.Muon[0].pt, event.Muon[0].eta, event.Muon[0].phi, event.Muon[0].mass])
+                else:
+                    continue
+                
         if len(gen_taus_event) in [0, 1]: continue 
         else: 
             gen_taus.append(gen_taus_event)
@@ -386,31 +421,24 @@ def compute_invariant_masses(dataset, gen_taus, pairType):
 
 
 
-def mass_plot(inv_mass_reco, inv_mass_tar, flat, out_name):
+def mass_plot(inv_mass_reco, inv_mass_tar, out_name):
     """
     Generates and saves a histogram comparing the invariant mass distributions of 
     reconstructed (RECO) and Monte Carlo truth (MC) tau-tau pairs.
     """
     plt.figure(figsize=(6, 4))
     plt.style.use(hep.style.CMS)
-    if flat == 0: 
-        r_max = 350
-        plt.hist(inv_mass_tar, bins=200, range=(0, r_max), histtype='step', linewidth=2, label=r'$m_{\tau\tau}^{MC}$')
-        plt.hist(inv_mass_reco, bins=200, range=(0, r_max), histtype='step', linewidth=2, color = "orange", label=r'$m_{\tau\tau}^{RECO}$')
-    else:
-        r_max = 150
-        plt.hist(inv_mass_tar, bins=200, range=(0, r_max), histtype='step', linewidth=2, label=r'$m_{\tau\tau}^{MC}$ - $\mu = $' + str(np.round(np.mean(inv_mass_tar), 3)) + ' - ' + '$\sigma =$' + str(np.round(np.std(inv_mass_tar), 3)))
-        plt.hist(inv_mass_reco, bins=200, range=(0, r_max), histtype='step', linewidth=2, color = "orange", label=r'$m_{\tau\tau}^{RECO}$ - $\mu = $' + str(np.round(np.mean(inv_mass_reco), 3)) + ' - ' + '$\sigma =$' + str(np.round(np.std(inv_mass_reco), 3)))
+
+    r_max = 150
+    plt.hist(inv_mass_tar, bins=200, range=(0, r_max), histtype='step', linewidth=2, label=r'$m_{\tau\tau}^{MC}$ - $\mu = $' + str(np.round(np.mean(inv_mass_tar), 3)) + ' - ' + '$\sigma =$' + str(np.round(np.std(inv_mass_tar), 3)))
+    plt.hist(inv_mass_reco, bins=200, range=(0, r_max), histtype='step', linewidth=2, color = "orange", label=r'$m_{\tau\tau}^{RECO}$ - $\mu = $' + str(np.round(np.mean(inv_mass_reco), 3)) + ' - ' + '$\sigma =$' + str(np.round(np.std(inv_mass_reco), 3)))
     plt.xlim(0, r_max)
     plt.xlabel('Invariant Mass', fontsize = 12)
     plt.ylabel('Events', fontsize = 12)
     plt.title('MC & Reco Invariant Mass Distributions', fontsize = 16)
     plt.xticks(fontsize=10)
     plt.yticks(fontsize=10)
-    if flat == 0: 
-        plt.legend(loc='upper right', fontsize=10)
-    else:
-        plt.legend(loc='upper left', fontsize=10)
+    plt.legend(loc='upper left', fontsize=10)
     plt.savefig(out_name)
 
     
@@ -460,7 +488,20 @@ def delta_r(eta1, phi1, eta2, phi2):
     deta = eta1 - eta2
     return np.sqrt(deta**2 + dphi**2)
 
+def delta_r_numpy(eta1, phi1, eta2, phi2):
+    dphi = phi1 - phi2
+    dphi = np.mod(dphi + np.pi, 2 * np.pi) - np.pi  # corretta gestione del range [-pi, pi]
+    deta = eta1 - eta2
+    return np.sqrt(deta**2 + dphi**2)
 
+def compute_delta_r(taus_array):
+    # Assumendo: taus_array shape = (num_events, 2, num_features)
+    eta1 = taus_array[:, 0, 1]
+    phi1 = taus_array[:, 0, 2]
+    eta2 = taus_array[:, 1, 1]
+    phi2 = taus_array[:, 1, 2]
+
+    return delta_r_numpy(eta1, phi1, eta2, phi2)
 
 @njit
 def pt_ratio_tauprod(dataset):
@@ -619,3 +660,32 @@ def process_feature(data, collection, feature):
         return np.ones_like(ak.to_numpy(data[collection]['logpt']))
     else:
         return ak.to_numpy(data[collection][feature])
+    
+
+
+@njit
+def match_gen_particle(tau, genparts, delta_r_threshold=0.4):
+    """
+    Returns the index and deltaR of the closest GenPart to a tau that is either:
+    - a b quark from a top quark, or
+    - a daughter of a W boson.
+    If no match is found within delta_r_threshold, returns (-1, 999.0).
+    """
+    min_dr = 999.
+    min_idx = -1
+    for i, gen in enumerate(genparts):
+        mother_idx = gen.genPartIdxMother
+        if mother_idx < 0:
+            continue
+        mother = genparts[mother_idx]
+        is_b_from_top = abs(gen.pdgId) == 5 and abs(mother.pdgId) == 6
+        is_child_of_W = abs(mother.pdgId) == 24
+        if is_b_from_top or is_child_of_W:
+            dr = delta_r(tau.eta, tau.phi, gen.eta, gen.phi)
+            if dr < min_dr:
+                min_dr = dr
+                min_idx = i
+    if (min_idx >= 0) and (min_dr < delta_r_threshold):
+        return min_idx, min_dr
+    else:
+        return -1, 999.

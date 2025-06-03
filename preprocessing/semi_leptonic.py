@@ -5,27 +5,33 @@ import awkward as ak
 import numpy as np
 import argparse
 import uproot
-from utils import _pad, compute_new_features, compute_invariant_masses, mu_tau_preprocessing, ele_tau_preprocessing, InteractionMask, mass_plot, SVFit_input, store_gen_level_information_plus_jets, process_feature
+from utils import _pad, compute_new_features, compute_invariant_masses, mu_tau_preprocessing, ele_tau_preprocessing, InteractionMask, mass_plot, SVFit_input, store_gen_level_information_plus_jets, process_feature, str2bool
 
 # Parse arguments
 parser = argparse.ArgumentParser('Running Custom NanoAODs pre-processing for Tau Pair Mass Transformer input making.')
-parser.add_argument('-i', '--input'  , type=str, default='/eos/cms/store/group/phys_higgs/HLepRare/HTT_skim_v1/Run2_2018/DYJetsToLL_M-50-madgraphMLM/nanoHTT_0.root', help='Input file')
-parser.add_argument('-f', '--flat'  , type=int, default=0, help='0 if pre-processing a flat mass sample')
-parser.add_argument('-p', '--pairType' , type=str, default='ele_tau', help='pairType')
-parser.add_argument('-t', '--test'   , type=bool, default=True, help='If True writes also designed dataset for running SVFit algorithm later')
+#parser.add_argument('-i', '--input'  , type=str, default='/eos/cms/store/group/phys_higgs/HLepRare/HTT_skim_v1/Run2_2018/DYJetsToLL_M-50-madgraphMLM/nanoHTT_0.root', help='Input file')
+parser.add_argument('-i', '--input', type=str, default='/eos/cms/store/group/phys_higgs/HLepRare/skim_2024_v2/Run3_2023/GluGluHToTauTau_M125_amcatnloFXFX/nano_0.root', help='Input file')
+parser.add_argument('-p', '--pairType', type=str, default='ele_tau', help='pairType')
+parser.add_argument('-t', '--true_tau', type=str2bool, default=True, help='Search for true or fake taus')
+parser.add_argument('-s', '--SVFit', type=str2bool, default=True, help='If True writes also designed dataset for running SVFit algorithm later')
 parser.add_argument('-pT', '--pTcut', type=float, default=20.0, help='pT threshold')
 args = parser.parse_args()
- 
 
 filepath = args.input
 parts = filepath.split('/')
 sample = parts[-2]
 root_file = parts[-1][:-5]
-flat = args.flat
 pairType = args.pairType
-test = args.test 
+test = args.SVFit
 pT_threshold =  args.pTcut
-is_true_tau = False if "TTT" in filepath else True
+is_true_tau = args.true_tau
+
+base_folder = '/gwdata/users/camagni/DiTau/TPMT_DATA/'
+os.makedirs(base_folder+sample, exist_ok=True)
+os.makedirs(base_folder+sample+'/JOBS', exist_ok=True)
+os.makedirs(base_folder+sample+'/DATA', exist_ok=True)
+os.makedirs(base_folder+sample+'/PLOTS', exist_ok=True)
+os.makedirs(base_folder+sample+'/LOGS', exist_ok=True)
 
 
 columns_to_load = ["Tau_pt", "Tau_eta", "Tau_phi", "Tau_mass", "Tau_decayMode", "Tau_genPartFlav", "Tau_genPartIdx",             
@@ -53,12 +59,16 @@ if 'MET*' in columns_to_load:
 elif 'PFMET*' in columns_to_load:
     met_features = ['PFMET_logpt', 'PFMET_phi', 'PFMET_covXX', 'PFMET_covXY', 'PFMET_covYY', 'PFMET_significance', 'PFMET_sumEt', 'PFMET_sumPtUnclustered']
 
+
+
 # for SVFIT
 svfit_tau_features = ['pt', 'eta', 'phi', 'mass', 'decayMode'] 
 svfit_met_features  = [feature.replace('logpt', 'pt') if 'logpt' in feature else feature for feature in met_features][0:5]
 
-log_file = sample + "/LOGS/Log_" + str(pairType) + "_" + str(root_file) + '.txt'
-mass_plot_file = sample + "/PLOTS/gen_reco_invmass_" + str(pairType) + "_" + str(root_file) +".png"
+#____________________________________________________________________________________________________
+
+log_file = base_folder + sample + "/LOGS/Log_" + str(pairType) + "_" + str(root_file) + '.txt'
+mass_plot_file = base_folder  + sample + "/PLOTS/gen_reco_invmass_" + str(pairType) + "_" + str(root_file) +".png"
 
 with open(log_file, "w") as file:
     sys.stdout = file
@@ -67,7 +77,6 @@ with open(log_file, "w") as file:
 
     data = []
     gen_taus = []
-
     for data_chunk in uproot.iterate(
         filepath + ":Events", 
         filter_name=columns_to_load, 
@@ -99,14 +108,13 @@ with open(log_file, "w") as file:
     data = np.concatenate(data)
     gen_taus = sum(gen_taus, [])
     print("Events with at least 1 gen matched lepton and 1 gen matched tau with pt > 20 GeV: {count}".format(count = len(data)))
-
     inv_mass_reco, inv_mass_tar = compute_invariant_masses(data, gen_taus, pairType)
     mask = inv_mass_tar > 5
     data = data[mask]
     gen_taus = np.array(gen_taus)[mask]  
     inv_mass_reco = inv_mass_reco[mask]
     inv_mass_tar = inv_mass_tar[mask]
-    mass_plot(inv_mass_reco, inv_mass_tar, flat, mass_plot_file)
+    mass_plot(inv_mass_reco, inv_mass_tar, mass_plot_file)
 
     # ____________________________________________________SAVE OUTPUTS_________________________________________________________
 
@@ -136,14 +144,14 @@ with open(log_file, "w") as file:
     print("Reco Mass Input: ", inv_mass_reco.shape)
     print("Gen Mass Input: ", inv_mass_tar.shape)  
 
-    np.savez(sample + "/DATA/" + pairType + "_" + root_file + ".npz", 
+    np.savez(base_folder + sample + "/DATA/" + pairType + "_" + root_file + ".npz", 
          x_taus = x_taus, x_tauprod = x_tauprod, x_met = x_met, x_jets = x_jets, target = target,
          inv_mass_reco = inv_mass_reco, inv_mass_tar = inv_mass_tar)
     print(f"Preprocessed data saved to {sample}/DATA/{pairType}_{root_file}.npz")
 
     if test: 
         svfit_data, ak_array = SVFit_input(data, svfit_tau_features, svfit_met_features, pairType)
-        output_file = sample + "/DATA/SVFit_" + pairType + "_" + root_file + '.root'
+        output_file = base_folder + sample + "/DATA/SVFit_" + pairType + "_" + root_file + '.root'
         branches = {col: ak_array[col].type for col in svfit_data.columns} # Define the schema of the tree
         with uproot.recreate(output_file) as file2:  
             file2["Events"] = ak.zip({col: ak_array[col] for col in svfit_data.columns}) # Write the Awkward Array to a ROOT file
